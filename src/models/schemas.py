@@ -2,9 +2,9 @@ from pydantic import BaseModel, Field
 
 
 class UserIn(BaseModel):
-    first_name: str = Field(..., max_length=40)
+    first_name: str = Field(max_length=40)
     last_name: str = Field(max_length=80)
-    email: str = Field(..., pattern="[a-zA-z0-9]+@[a-zA-z0-9]+[.]([a-zA-z0-9]{2,4})", max_length=128)  # pattern_in
+    email: str = Field(max_length=120)
     password: str = Field(min_length=6)
 
 
