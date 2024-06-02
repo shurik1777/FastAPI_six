@@ -1,46 +1,53 @@
-from fastapi import Request, APIRouter
-from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
-import pandas as pd
-from src.models.schemas import Product, ProductIn
+from fastapi import APIRouter, HTTPException
+from src.models.schemas import ProductOut, ProductIn
 from src.models.store_models import database, products
+from typing import List
 
+# Передаю приложение через декоратор router с префиксом и тагом
 router = APIRouter(prefix="/products", tags=["products"])
-templates = Jinja2Templates(directory='templates')
 
 
-@router.post("/", response_model=Product)
+# Product CRUD operations
+# Создание продукта
+@router.post("/", response_model=ProductOut)
 async def create_product(product: ProductIn):
     query = products.insert().values(**product.model_dump())
     record_id = await database.execute(query)
     return {**product.model_dump(), "id": record_id}
 
 
-@router.get("/", response_class=HTMLResponse)
-async def read_products(request: Request):
-    query = products.select()
-    products_table = pd.DataFrame([product for product in await database.fetch_all(query)]).to_html(index=False)
-    return templates.TemplateResponse("products.html", {"request": request, "products_table": products_table})
-
-
-@router.get("/{product_id}", response_model=Product)
-async def read_product(request: Request, product_id: int):
+# Получение конкретного продукта
+@router.get("/{product_id}", response_model=ProductOut)
+async def read_product(product_id: int):
     query = products.select().where(products.c.id == product_id)
-    product = pd.DataFrame([p for p in await database.fetch_all(query)]).to_html(index=False)
-    return templates.TemplateResponse("products.html", {"request": request, "product": product})
+    product = await database.fetch_one(query)
+    if product is None:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return product
 
 
-@router.put("/{product_id}", response_model=Product)
+# Получение всех продуктов с условием от 0 до 10
+@router.get("/", response_model=List[ProductOut])
+async def read_products(skip: int = 0, limit: int = 10):
+    query = products.select().offset(skip).limit(limit)
+    return await database.fetch_all(query)
+
+
+# Изменить данные продукта по его id
+@router.put("/{product_id}", response_model=ProductOut)
 async def update_product(product_id: int, new_product: ProductIn):
     query = products.update().where(products.c.id == product_id).values(**new_product.model_dump())
     await database.execute(query)
     return {**new_product.model_dump(), "id": product_id}
 
 
-@router.delete("/{product_id}", response_model=Product)
+# Удалить продукт из бд
+@router.delete("/{product_id}", response_model=ProductOut)
 async def delete_user(product_id: int):
-    removed = products.select().where(products.c.id == product_id)
-    query = products.delete().where(products.c.id == product_id)
-    result = await database.fetch_one(removed)
-    await database.execute(query)
-    return result
+    query = products.select().where(products.c.id == product_id)
+    product = await database.fetch_one(query)
+    if product is None:
+        raise HTTPException(status_code=404, detail="Product not found")
+    delete_query = products.delete().where(products.c.id == product_id)
+    await database.execute(delete_query)
+    return product

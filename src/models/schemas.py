@@ -1,5 +1,4 @@
 import bcrypt
-from datetime import datetime
 from pydantic import BaseModel, Field, EmailStr, validator
 
 
@@ -29,11 +28,14 @@ class ProductIn(BaseModel):
     price: float = Field(gt=0, le=999999)
 
 
-class Product(BaseModel):
+class ProductOut(BaseModel):
     id: int
     title: str = Field(max_length=80)
     description: str = Field(max_length=512)
     price: float = Field(gt=0, le=999999)
+
+    class Config:
+        from_attributes = True
 
 
 # модель используется только при создании и обновлении заказа
@@ -47,3 +49,6 @@ class Order(BaseModel):
     status: str = Field(default="Создан")
     user_id: int = Field(foreign_key=True)
     product_id: int = Field(foreign_key=True)
+
+    class Config:
+        from_attributes = True
