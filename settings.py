@@ -1,4 +1,4 @@
-from pydantic_settings import BaseSettings  # необходимо установить pip install pydantic-settings
+from pydantic_settings import BaseSettings
 
 from dotenv import load_dotenv
 load_dotenv()

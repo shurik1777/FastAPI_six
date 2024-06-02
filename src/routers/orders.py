@@ -19,7 +19,7 @@ async def create_order(user_id: int, product_id: int, order: OrderIn):
 
 
 # Получение конкретного заказа
-@router.get("/orders/{order_id}", response_model=Order)
+@router.get("/{order_id}", response_model=Order)
 async def read_order(order_id: int):
     query = orders.select().where(orders.c.id == order_id)
     order = await database.fetch_one(query)
