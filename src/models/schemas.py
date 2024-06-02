@@ -1,15 +1,31 @@
-from pydantic import BaseModel, Field
+import bcrypt
+from datetime import datetime
+from pydantic import BaseModel, Field, EmailStr, validator
 
 
 class UserIn(BaseModel):
     first_name: str = Field(max_length=40)
     last_name: str = Field(max_length=80)
-    email: str = Field(max_length=120)
-    password: str = Field(min_length=6)
+    email: EmailStr = Field(..., max_length=50)
+    password: str = Field(max_length=128)
+
+    @validator('password')
+    def hash_password(cls, value):
+        return bcrypt.hashpw(value.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
 
-class User(UserIn):
+class UserOut(BaseModel):
     id: int
+    username: str
+    email: EmailStr
+
+    class Config:
+        from_attributes = True
+
+
+
+# class User(UserIn):
+#     id: int
 
 
 class ProductIn(BaseModel):

@@ -1,36 +1,35 @@
-from fastapi import Request, APIRouter, HTTPException
-from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
-import pandas as pd
-from src.models.schemas import User, UserIn
+from fastapi import APIRouter, HTTPException
+from src.models.schemas import UserIn, UserOut
 from src.models.store_models import database, users
+from typing import List
 
 router = APIRouter(prefix="/users", tags=["users"])
-templates = Jinja2Templates(directory='templates')
 
 
-@router.post("/", response_model=User)
+# User CRUD operations
+@router.post("/users/", response_model=UserOut)
 async def create_user(user: UserIn):
     query = users.insert().values(**user.model_dump())
     record_id = await database.execute(query)
     return {**user.model_dump(), "id": record_id}
 
 
-@router.get("/", response_class=HTMLResponse)
-async def read_users(request: Request):
-    query = users.select()
-    users_table = pd.DataFrame([user for user in await database.fetch_all(query)]).to_html(index=False)
-    return templates.TemplateResponse("users.html", {"request": request, "users_table": users_table})
-
-
-@router.get("/{user_id}", response_model=User)
-async def read_user(request: Request, user_id: int):
+@router.get("/users/{user_id}", response_model=UserOut)
+async def read_user(user_id: int):
     query = users.select().where(users.c.id == user_id)
-    user = pd.DataFrame([u for u in await database.fetch_all(query)]).to_html(index=False)
-    return templates.TemplateResponse("users.html", {"request": request, "user": user})
+    user = await database.fetch_one(query)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
 
 
-@router.put("/{user_id}", response_model=User)
+@router.get("/users/", response_model=List[UserOut])
+async def read_users(skip: int = 0, limit: int = 10):
+    query = users.select().offset(skip).limit(limit)
+    return await database.fetch_all(query)
+
+
+@router.put("/users/{user_id}", response_model=UserOut)
 async def update_user(user_id: int, new_user: UserIn):
     if "model_dump" not in dir(new_user):
         raise HTTPException(status_code=400, detail="Invalid request body")
@@ -39,10 +38,12 @@ async def update_user(user_id: int, new_user: UserIn):
     return {**new_user.model_dump(), "id": user_id}
 
 
-@router.delete("/{user_id}", response_model=User)
+@router.delete("/{user_id}", response_model=UserOut)
 async def delete_user(user_id: int):
-    removed = users.select().where(users.c.id == user_id)
-    query = users.delete().where(users.c.id == user_id)
-    result = await database.fetch_one(removed)
-    await database.execute(query)
-    return result
+    query = users.select().where(users.c.id == user_id)
+    user = await database.fetch_one(query)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    delete_query = users.delete().where(users.c.id == user_id)
+    await database.execute(delete_query)
+    return user
