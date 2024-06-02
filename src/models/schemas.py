@@ -16,16 +16,11 @@ class UserIn(BaseModel):
 
 class UserOut(BaseModel):
     id: int
-    username: str
+    first_name: str
     email: EmailStr
 
     class Config:
         from_attributes = True
-
-
-
-# class User(UserIn):
-#     id: int
 
 
 class ProductIn(BaseModel):
